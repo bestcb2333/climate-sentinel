@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #28CE3E;
+  --el-color-primary: var(--primary);
+  --el-menu-hover-bg-color: #d0d0d0;
+  --el-menu-active-color: #ffffff;
+  --el-menu-hover-text-color: var(--el-menu-text-color);
+}
+
+.el-menu-item {
+  border-radius: 2rem;
+  border-bottom: 0 !important;
+}
+
+.el-menu-item.is-active {
+  background-color: var(--primary);
+}
+
+.el-menu-item:focus {
+  background-color: var(--primary) !important;
+}
+
+.el-card {
+  border-radius: 1rem;
+}
+
+.el-card__header {
+  font-weight: bold;
+}
+
+.el-segmented__item {
+  border-radius: 2rem;
+}
+
+.el-segmented__item-selected {
+  border-radius: 2rem;
+}
+
