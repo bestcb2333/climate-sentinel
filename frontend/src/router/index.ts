@@ -8,7 +8,7 @@ const router = createRouter({
       name: 'dashboard',
       component: () => import('@/views/DashBoard.vue'),
       meta: {
-        label: 'navbar.dashboard',
+        label: 'dashboard',
       },
     },
     {
@@ -16,7 +16,7 @@ const router = createRouter({
       name: 'resource',
       component: () => import('@/views/ResourceManage.vue'),
       meta: {
-        label: 'navbar.resource',
+        label: 'resource',
       },
     },
     {
@@ -24,7 +24,7 @@ const router = createRouter({
       name: 'weather',
       component: () => import('@/views/HistoryWeather.vue'),
       meta: {
-        label: 'navbar.weather',
+        label: 'weather',
       },
     },
     {
@@ -32,7 +32,7 @@ const router = createRouter({
       name: 'routes',
       component: () => import('@/views/RescueRoutes.vue'),
       meta: {
-        label: 'navbar.routes',
+        label: 'routes',
       },
     },
     {
@@ -40,15 +40,15 @@ const router = createRouter({
       name: 'events',
       component: () => import('@/views/DisasterEvents.vue'),
       meta: {
-        label: 'navbar.events',
+        label: 'events',
       },
     },
     {
-      path: '/staff',
-      name: 'staff',
-      component: () => import('@/views/StaffManage.vue'),
+      path: '/users',
+      name: 'users',
+      component: () => import('@/views/UserManage.vue'),
       meta: {
-        label: 'navbar.staff',
+        label: 'staff',
       },
     },
   ],

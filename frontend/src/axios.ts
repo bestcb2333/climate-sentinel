@@ -1,11 +1,12 @@
 // @ts-check
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import usePersistedStore from './persisted'
+import usePersistedStore from '@/stores/persisted'
+import qs from 'qs'
 
 export const request = axios.create({
   baseURL: 'http://axogc.net:8701',
-  timeout: 5000,
+  paramsSerializer: params => qs.stringify(params, {arrayFormat: 'repeat'})
 })
 
 request.interceptors.request.use((config) => {
@@ -19,7 +20,6 @@ request.interceptors.request.use((config) => {
 
 request.interceptors.response.use(
   (res) => {
-    ElMessage({type: 'success', message: 'Error'})
     return res.data.data
   },
   (err) => {

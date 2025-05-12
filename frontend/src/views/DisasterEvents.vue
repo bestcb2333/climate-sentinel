@@ -1,55 +1,55 @@
 <script setup lang="ts">
 import {request} from '@/axios';
 import {Plus, Minus} from '@element-plus/icons-vue';
-import {computed, reactive, ref, watch} from 'vue';
+import {reactive, ref, watch} from 'vue';
 import { formatDate } from '@/utils';
 import {useI18n} from 'vue-i18n';
 import RegionMap from '@/components/RegionMap.vue';
 import type {Event} from '@/tables';
-import {map} from 'echarts/types/src/export/api/util.js';
 import dayjs from 'dayjs';
+import useSessionStore from '@/stores/session';
+import type {StatsItem} from '@/types';
+import {computed} from 'vue';
+import {useRouteQuery} from '@vueuse/router';
 
+const session = useSessionStore()
 const isOnlyCurrent = ref(false)
-const disasterType = ref('all')
+
 const disasterTypes = [
-  ['all', '所有灾害'],
-  ['blizzard', '暴雪'],
-  ['typhoon', '台风'],
-  ['hail', '冰雹'],
-  ['fog', '大雾'],
-  ['thunder', '雷雨'],
-  ['others', '其他'],
-].map(([value, label]) => ({value, label}))
+  'blizzard', 'typhoon', 'hail', 'fog', 'thunder', 'others',
+]
+
+const severities = [
+  'safe', 'low', 'medium', 'high',
+]
+
+const severityColorMap = {
+  safe: 'green',
+  low: 'cyan',
+  medium: 'orange',
+  high: 'red',
+}
 
 const currentRow = ref<Event|null>(null)
-const page = ref(1)
-const pageSize = ref(10)
+const page = useRouteQuery('page', '1', {transform: Number})
+const pageSize = useRouteQuery('pag_size', '10', {transform: Number})
+const type = useRouteQuery('type', 'all')
+const regionId = useRouteQuery('region_id', '0', {transform: Number})
 const total = ref(0)
 const events = ref<Event[]>([])
-watch([page, pageSize], async ([page, pageSize]) => {
+async function loadTable() {
   const res = await request.get<any, {
     data: Event[],
     total: number,
-  }>('/events', {params: {
-    page, pageSize,
-  }})
+  }>(`/events?page=${page.value}&page_size=${pageSize.value}&region_id=${regionId.value}&type=${type.value}`)
   events.value = res.data
   total.value = res.total
-}, {immediate: true})
-
-const severities: {
-  type: 'success'|'primary'|'warning'|'danger',
-  content: string,
-}[] = [
-  {type: 'success', content: '无风险'},
-  {type: 'primary', content: '低风险'},
-  {type: 'warning', content: '中风险'},
-  {type: 'danger', content: '高风险'},
-]
+}
+watch([page, pageSize, type, regionId], loadTable, {immediate: true})
 
 const isDialogOpen = ref(false)
 
-const addEventForm = reactive({
+const addItemForm = reactive({
   type: '',
   startTime: new Date(),
   endTime: new Date(),
@@ -59,15 +59,38 @@ const addEventForm = reactive({
   description: '',
 })
 
-const board = computed(() => [
-  ['事件总数', events.value.length],
-  ['高风险事件数', events.value.filter(event => event.severity===3).length],
-  ['中风险事件数', events.value.filter(event => event.severity===2).length],
-  ['低风险事件数', events.value.filter(event => event.severity===1).length],
-  ['无风险事件数', events.value.filter(event => event.severity===0).length],
-].map(([label, value]) => ({label, value})))
+const markers = computed(() => events.value.map(({
+  name, coordinate, severity,
+}) => ({
+  name, coordinate, color: severityColorMap[severity],
+})))
+
+const statsItems = ref<StatsItem[]>([])
+async function getStatsItems() {
+  try {
+    const res = await request.get<any, StatsItem[]>('/events/stats')
+    statsItems.value = res
+  } catch {}
+}
+getStatsItems()
 
 async function addEvent() {
+  try {
+    await request.post('/events', addItemForm)
+    isDialogOpen.value = false
+    loadTable()
+    getStatsItems()
+  } catch {}
+}
+
+const selected = ref<number[]>([])
+async function deleteItems() {
+  try {
+    await request.delete('/events', {params: {id: selected.value}})
+    selected.value = []
+    loadTable()
+    getStatsItems()
+  } catch {}
 }
 
 const { t } = useI18n({messages: {
@@ -77,11 +100,25 @@ const { t } = useI18n({messages: {
     disasterType: '事件类型',
     startTime: '开始时间',
     endTime: '结束时间',
+    type: '灾害类型',
     severity: '严重性',
     coordinate: '坐标',
     description: '描述',
     notEnd: '未结束',
     region: '区域名',
+    eventList: '事件列表',
+    all: '所有灾害',
+    allRegion: '所有区域',
+    blizzard: '暴雪',
+    typhoon: '台风',
+    hail: '冰雹',
+    fog: '大雾',
+    thunder: '雷雨',
+    others: '其他',
+    safe: '无风险',
+    low: '低风险',
+    medium: '中风险',
+    high: '高风险',
   },
 }})
 </script>
@@ -96,7 +133,9 @@ const { t } = useI18n({messages: {
       <el-button round type="primary" @click="isDialogOpen=true">
         {{t('reportEvent')}}
       </el-button>
-      <el-segmented class="mt-auto" direction="vertical" v-model="disasterType" :options="disasterTypes">
+      <el-segmented class="mt-auto" direction="vertical" v-model="type"
+        :options="['all', ...disasterTypes].map(type=>({label:t(type),value:type}))"
+      >
         <template #default="scope">
           {{(scope.item as Record<string, string>).label}}
         </template>
@@ -104,9 +143,9 @@ const { t } = useI18n({messages: {
     </div>
 
     <el-card shadow="hover" body-class="h-full flex justify-around items-center">
-      <div v-for="item in board" :key="item.label" class="flex flex-col items-center">
+      <div v-for="item in statsItems" :key="item.label" class="flex flex-col items-center">
         <div class="font-bold">
-          {{item.label}}
+          {{t(item.label)}}
         </div>
         <div>
           {{item.value}}
@@ -128,7 +167,7 @@ const { t } = useI18n({messages: {
         </div>
       </template>
 
-      <region-map :markers="events" />
+      <region-map :markers="markers" />
 
       <template #footer>
         {{currentRow ? currentRow.description : '请选择事件查看信息'}}
@@ -140,14 +179,32 @@ const { t } = useI18n({messages: {
         shadow="never"
         class="flex flex-col"
         body-class="grow overflow-y-auto"
-        header-class="font-bold text-lg"
+        header-class="flex"
         footer-class="flex justify-end"
       >
         <template #header>
-          {{$t('event.eventList')}}
+          <div>
+            {{t('eventList')}}
+          </div>
+          <el-select class="w-32 ms-auto" v-model="regionId">
+            <el-option :label="t('allRegion')" :value="0" />
+            <el-option
+              v-for="region in session.regions"
+              :key="region.id"
+              :label="region.name"
+              :value="region.id"
+            />
+          </el-select>
+          <el-button class="ms-2" type="danger" round @click="deleteItems">
+            删除所选事件
+          </el-button>
         </template>
 
-        <el-table :data="events" highlight-current-row @current-change="val => currentRow = val">
+        <el-table :data="events"
+          highlight-current-row @current-change="val=>currentRow=val"
+          @selection-change="(val:Event[])=>selected=val.map(item=>item.id)"
+        >
+          <el-table-column type="selection" />
           <el-table-column
             :label="$t('event.startTime')"
             prop="startTime"
@@ -163,10 +220,11 @@ const { t } = useI18n({messages: {
               </div>
             </template>
           </el-table-column>
+          <el-table-column :label="t('type')" prop="type" :formatter="(_1,_2,val)=>t(val)" />
           <el-table-column :label="$t('event.severity')" prop="severity">
-            <template #default="scope">
-              <el-tag :type="severities[scope.row.severity].type">
-                {{severities[scope.row.severity].content}}
+            <template #default="{row}">
+              <el-tag :color="severityColorMap[row.severity as 'low']" class="text-black">
+                {{t(row.severity)}}
               </el-tag>
             </template>
           </el-table-column>
@@ -190,47 +248,54 @@ const { t } = useI18n({messages: {
   <el-dialog v-model="isDialogOpen" :title="$t('event.report')">
     <el-form>
       <el-form-item :label="t('disasterType')">
-        <el-select v-model="addEventForm.type">
+        <el-select v-model="addItemForm.type">
           <el-option
             v-for="type in disasterTypes"
-            :key="type.value"
-            :label="type.label"
-            :value="type.value"
+            :key="type"
+            :label="t(type)"
+            :value="type"
           />
         </el-select>
       </el-form-item>
       <el-form-item :label="t('startTime')">
-        <el-date-picker v-model="addEventForm.startTime" type="datetime" />
+        <el-date-picker v-model="addItemForm.startTime" type="datetime" />
       </el-form-item>
       <el-form-item :label="t('endTime')">
-        <el-date-picker v-model="addEventForm.endTime" type="datetime" />
+        <el-date-picker v-model="addItemForm.endTime" type="datetime" />
+      </el-form-item>
+      <el-form-item :label="t('region')">
+        <el-select v-model="addItemForm.regionId">
+          <el-option
+            v-for="region in session.regions"
+            :key="region.id"
+            :label="region.name"
+            :value="region.id"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item :label="t('severity')">
-        <el-select v-model="addEventForm.severity">
+        <el-select v-model="addItemForm.severity">
           <el-option
             v-for="severity, index in severities"
-            :key="severity.type"
-            :label="severity.content"
+            :key="severity"
+            :label="t(severity)"
             :value="index"
           />
         </el-select>
       </el-form-item>
-      <el-form-item>
-
-      </el-form-item>
       <el-form-item :label="t('coordinate')">
-        <el-input-number v-model="addEventForm.coordinate[0]" />
-        <el-input-number v-model="addEventForm.coordinate[1]" class="ms-4" />
+        <el-input-number v-model="addItemForm.coordinate[0]" />
+        <el-input-number v-model="addItemForm.coordinate[1]" class="ms-4" />
       </el-form-item>
       <el-form-item :label="t('description')">
-        <el-input type="textarea" v-model="addEventForm.description" />
+        <el-input type="textarea" v-model="addItemForm.description" />
       </el-form-item>
       <el-form-item>
         <el-button @click="addEvent" round class="ms-auto" type="primary">
-          {{$t('global.confirm')}}
+          {{t('confirm')}}
         </el-button>
         <el-button @click="isDialogOpen=false" round>
-          {{$t('global.cancel')}}
+          {{t('cancel')}}
         </el-button>
       </el-form-item>
     </el-form>

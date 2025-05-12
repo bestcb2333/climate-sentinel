@@ -49,7 +49,7 @@ func AddUploadRegionRoutes(r *gin.Engine, pbc *PreloaderBaseConfig) {
 
 			for _, feature := range geo.Features {
 				region := &Region{
-					RegionDTO: RegionDTO{
+					RegionDTO: &RegionDTO{
 						Coordinate: feature.Geometry.Coordinates,
 						Name:       feature.Properties["name"].(string),
 					},

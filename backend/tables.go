@@ -15,7 +15,6 @@ var Tables = []any{
 	new(Resource),
 	new(Notice),
 	new(Route),
-	new(Message),
 }
 
 type ListDTO struct {
@@ -36,11 +35,11 @@ type IDField struct {
 }
 
 type CreatedAtField struct {
-	CreatedAt time.Time `json:"createdAt" gorm:"not null;comment:创建时间"`
+	CreatedAt *time.Time `json:"createdAt,omitempty" gorm:"comment:创建时间"`
 }
 
 type UpdatedAtField struct {
-	UpdatedAt time.Time `json:"updatedAt" gorm:"not null;comment:更新时间"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty" gorm:"comment:更新时间"`
 }
 
 type DeletedAt struct {
@@ -52,15 +51,14 @@ type User struct {
 	IDField
 	CreatedAtField
 	UpdatedAtField
-	Name     string    `json:"name" gorm:"type:VARCHAR(20);not null;unique;comment:用户名"`
-	Password string    `json:"-" gorm:"type:CHAR(64);not null;comment:密码"`
-	Email    string    `json:"email" gorm:"type:VARCHAR(50);not null;unique;comment:邮箱"`
-	Admin    bool      `json:"admin" gorm:"not null;comment:是管理员"`
-	RegionID *uint     `json:"-" gorm:"index;comment:志愿服务的区域"`
-	Region   *Region   `json:"region"`
-	Notices  []Notice  `json:"notices" gorm:"constraint:OnDelete:SET NULL"`
-	Events   []Event   `json:"events" gorm:"constraint:OnDelete:SET NULL"`
-	Messages []Message `json:"messages" gorm:"constraint:OnDelete:CASCADE"`
+	Name     string   `json:"name" gorm:"type:VARCHAR(20);not null;unique;comment:用户名"`
+	Password string   `json:"-" gorm:"type:CHAR(64);not null;comment:密码"`
+	Email    string   `json:"email" gorm:"type:VARCHAR(50);not null;unique;comment:邮箱"`
+	Admin    bool     `json:"admin" gorm:"not null;comment:是管理员"`
+	RegionID *uint    `json:"-" gorm:"index;comment:志愿服务的区域"`
+	Region   *Region  `json:"region"`
+	Notices  []Notice `json:"notices" gorm:"constraint:OnDelete:SET NULL"`
+	Events   []Event  `json:"events" gorm:"constraint:OnDelete:SET NULL"`
 }
 
 // 区域表
@@ -73,7 +71,7 @@ type RegionDTO struct {
 type Region struct {
 	IDField
 	UpdatedAtField
-	RegionDTO
+	*RegionDTO
 	Users     []User     `json:"users,omitempty" gorm:"constraint:OnDelete:SET NULL"`
 	Events    []Event    `json:"events,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 	Histories []History  `json:"histories,omitempty" gorm:"constraint:OnDelete:CASCADE"`
@@ -81,14 +79,14 @@ type Region struct {
 	Routes    []Route    `json:"routes,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 }
 
-// 内涝事件
+// 灾害事件
 type EventDTO struct {
 	Name        string     `json:"name" gorm:"type:VARCHAR(20);not null;unique;comment:事件名称"`
 	RegionID    uint       `json:"-" gorm:"not null;index;comment:所在区域ID"`
 	StartTime   time.Time  `json:"startTime" gorm:"not null;comment:开始时间"`
 	EndTime     *time.Time `json:"endTime" gorm:"comment:结束时间"`
 	Type        string     `json:"type" gorm:"type:VARCHAR(20);not null;comment:类型"`
-	Severity    uint       `json:"severity" gorm:"not null;comment:严重性"`
+	Severity    string     `json:"severity" gorm:"VARCHAR(20);not null;comment:严重性"`
 	Coordinate  orb.Point  `json:"coordinate" gorm:"type:JSON;serializer:json;not null;comment:坐标"`
 	Description string     `json:"description" gorm:"type:TEXT;not null;comment:描述"`
 }
@@ -96,7 +94,7 @@ type EventDTO struct {
 type Event struct {
 	IDField
 	CreatedAtField
-	EventDTO
+	*EventDTO
 	Region *Region `json:"region" gorm:"constraint:OnDelete:CASCADE"`
 	UserID *uint   `json:"-" gorm:"index;comment:上传的用户ID"`
 	User   *User   `json:"user"`
@@ -120,7 +118,7 @@ type HistoryDTO struct {
 type History struct {
 	IDField
 	CreatedAtField
-	HistoryDTO
+	*HistoryDTO
 	Region *Region `json:"region,omitempty" gorm:"constraint:OnDelete:CASCADE"`
 }
 
@@ -129,7 +127,7 @@ type ResourceDTO struct {
 	Type       string    `json:"type" gorm:"type:VARCHAR(50);not null;comment:资源类型"`
 	Name       string    `json:"name" gorm:"type:VARCHAR(50);not null;comment:资源名称"`
 	Quantity   uint      `json:"quantity" gorm:"not null;comment:数量"`
-	RegionID   uint      `json:"-" gorm:"not null;index;comment:所在的区域ID"`
+	RegionID   uint      `json:"regionId" gorm:"not null;index;comment:所在的区域ID"`
 	Coordinate orb.Point `json:"coordinate" gorm:"type:JSON;serializer:json;not null;comment:坐标"`
 	Available  bool      `json:"available" gorm:"not null;comment:是否可用"`
 }
@@ -137,7 +135,7 @@ type ResourceDTO struct {
 type Resource struct {
 	IDField
 	UpdatedAtField
-	ResourceDTO
+	*ResourceDTO
 	Region *Region `json:"region" gorm:"constraint:OnDelete:CASCADE"`
 }
 
@@ -151,12 +149,12 @@ type Notice struct {
 	IDField
 	CreatedAtField
 	UpdatedAtField
-	NoticeDTO
+	*NoticeDTO
 	UserID *uint `json:"-" gorm:"index;comment:编写者ID"`
 	User   *User `json:"user"`
 }
 
-// 传感器
+// 救援路线
 type RouteDTO struct {
 	Type        string              `json:"type" gorm:"type:VARCHAR(20);not null;comment:道路类型"`
 	Name        string              `json:"name" gorm:"type:VARCHAR(20);not null;unique;comment:名称"`
@@ -170,20 +168,6 @@ type RouteDTO struct {
 type Route struct {
 	IDField
 	CreatedAtField
-	RouteDTO
+	*RouteDTO
 	Region Region `json:"region"`
-}
-
-// LLM智能分析记录
-type MessageDTO struct {
-	Role    string `json:"role" gorm:"type:VARCHAR(20);not null;comment:消息类型"`
-	Content string `json:"content" gorm:"type:TEXT;not null;comment:内容"`
-}
-
-type Message struct {
-	IDField
-	CreatedAtField
-	MessageDTO
-	UserID uint `json:"-" gorm:"not null;index;comment:发起的用户ID"`
-	User   User `json:"user"`
 }

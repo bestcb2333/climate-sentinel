@@ -12,7 +12,7 @@ type UploadEventDTO struct {
 	FH          *multipart.FileHeader `form:"file"`
 	StartTime   time.Time             `form:"startTime"`
 	EndTime     time.Time             `form:"endTine"`
-	Severity    uint                  `form:"severity"`
+	Severity    string                `form:"severity"`
 	Description string                `form:"description"`
 }
 
@@ -30,7 +30,7 @@ func AddUploadEventRoutes(r *gin.Engine, pbc *PreloaderBaseConfig) {
 			}
 
 			if err := pbc.DB.Save(&Event{
-				EventDTO: EventDTO{
+				EventDTO: &EventDTO{
 					StartTime:   r.StartTime,
 					EndTime:     &r.EndTime,
 					Severity:    r.Severity,

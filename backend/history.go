@@ -1,47 +1,86 @@
 package main
 
 import (
+	p "github.com/bestcb2333/gin-gorm-preloader/preloader"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-type ListHistoryDTO struct {
-	RegionID uint `form:"regionId"`
-	ListDTO
+type ListHistoryReq struct {
+	RegionID uint   `form:"region_id"`
+	Future   bool   `form:"future"`
+	Type     string `form:"type"`
+	p.PageConfig
 }
 
-func AddHistoryRoutes(r *gin.Engine, pbc *PreloaderBaseConfig) {
+func AddHistoryRoutes(r *gin.Engine, bc *p.BaseConfig) {
 
-	r.GET("/histories", CreateListHandler[History](
-		&PreloaderConfig{
-			PreloaderBaseConfig: pbc,
-			Bind:                BindConfig{Query: true},
+	r.GET("/histories", p.CreateListHandler[History](
+		&p.Config[ListHistoryReq]{
+			Base: bc,
+			Bind: &p.BindConfig{Query: true},
 		},
-		&ListHistoryDTO{0, ListDTO{1, 10}},
-		func(query *gorm.DB, c *gin.Context, u *User, r *ListHistoryDTO) *gorm.DB {
+		func(query *gorm.DB, c *gin.Context, u *User, r *ListHistoryReq) *gorm.DB {
 			query = query.Preload("Region", Select("id", "name"))
 			if r.RegionID != 0 {
 				query = query.Where("region_id = ?", r.RegionID)
+			}
+			if r.Future {
+				query = query.Where("time > NOW()")
+			}
+			if r.Type != "all" {
+				query = query.Where("type = ?", r.Type)
 			}
 			return query
 		},
 	))
 
-	r.POST("/histories", CreateAddHandler[History](
-		&PreloaderConfig{
-			PreloaderBaseConfig: pbc,
-			Bind:                BindConfig{JSON: true},
-		},
-		new(HistoryDTO),
-		func(data *History, u *User, dto *HistoryDTO) *History {
-			return data
+	r.GET("/stats/histories", p.Preload(
+		&p.Config[struct{}]{},
+		func(c *gin.Context, u *User, r *struct{}) {
+
+			var items []BoardItem
+			query := bc.DB.Model(new(History)).Session(new(gorm.Session))
+
+			weathers := []struct {
+				ID    string
+				Label string
+			}{
+				{ID: "sunny", Label: "晴天"},
+				{ID: "rainy", Label: "雨天"},
+				{ID: "cloudy", Label: "多云"},
+				{ID: "foggy", Label: "雾天"},
+				{ID: "snowy", Label: "下雪"},
+				{ID: "windy", Label: "大风"},
+				{ID: "overcast", Label: "阴天"},
+			}
+
+			for _, weather := range weathers {
+				item := BoardItem{Label: weather.Label}
+				if err := query.Where("type = ?", weather.ID).Count(
+					&item.Value,
+				).Error; err != nil {
+					c.JSON(500, bc.Resp("统计失败", err, nil))
+					return
+				}
+				items = append(items, item)
+			}
+
+			c.JSON(200, bc.Resp("统计完成", nil, items))
+
 		},
 	))
 
-	r.DELETE("/histories", CreateDeleteHandler[History](&PreloaderConfig{
-		PreloaderBaseConfig: pbc,
-		Bind:                BindConfig{Query: true},
-	}))
+	r.POST("/histories", p.CreateAddHandler[History](
+		&p.Config[HistoryDTO]{
+			Base: bc,
+		},
+		func(c *gin.Context, u *User, dto *HistoryDTO) *History {
+			data := new(History)
+			data.HistoryDTO = dto
+			return data
+		},
+	))
 }
 
 type Trend struct {

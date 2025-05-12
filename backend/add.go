@@ -9,6 +9,7 @@ func CreateAddHandler[T any, DTO any](
 	def *DTO,
 	handlerFunc func(data *T, u *User, dto *DTO) *T,
 ) gin.HandlerFunc {
+	pc.Bind = BindConfig{JSON: true}
 	return Preload(
 		pc,
 		def,

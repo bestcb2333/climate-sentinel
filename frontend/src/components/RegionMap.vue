@@ -39,9 +39,7 @@ use([
 export interface MapMarker {
   name: string
   coordinate: [number, number] // [longitude, latitude]
-  itemStyle?: {
-    color?: string
-  }
+  color: string
   symbol?: string
   symbolSize?: number
   tooltip?: {
@@ -165,10 +163,6 @@ const chartOption = computed(() => {
           return `
             <div>
               <strong>${properties.name || 'Unknown'}</strong><br/>
-              ${properties.description ? `<div>${properties.description}</div>` : ''}
-              ${properties.altitude !== null ? `<div>Altitude: ${properties.altitude}</div>` : ''}
-              ${properties.drainage !== null ? `<div>Drainage: ${properties.drainage}</div>` : ''}
-              ${properties.forecast !== null ? `<div>Forecast: ${properties.forecast}</div>` : ''}
             </div>
           `
         } else if (params.seriesType === 'scatter') {
@@ -247,7 +241,7 @@ const chartOption = computed(() => {
       data: props.markers.map(marker => ({
         name: marker.name,
         value: marker.coordinate,
-        itemStyle: marker.itemStyle,
+        itemStyle: {color: marker.color},
         symbol: marker.symbol || 'pin',
         symbolSize: marker.symbolSize || 20
       })),

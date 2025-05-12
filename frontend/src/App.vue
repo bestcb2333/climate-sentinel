@@ -4,7 +4,6 @@ import useSessionStore from './stores/session';
 
 const session = useSessionStore()
 session.loadMap()
-session.loadUser()
 </script>
 
 <template>

@@ -1,0 +1,45 @@
+package main
+
+import (
+	p "github.com/bestcb2333/gin-gorm-preloader/preloader"
+	"github.com/gin-gonic/gin"
+)
+
+type Factor struct {
+	Name  string  `json:"name"`
+	Value float64 `json:"value"`
+}
+
+func NormalizeRisk(deviation float64, k float64) float64 {
+	if deviation < 0 {
+		deviation = -deviation
+	}
+	return deviation / (deviation + k)
+}
+
+func RegFactorsHandler(r *gin.Engine, bc *p.BaseConfig) {
+
+	r.GET("/factors", func(c *gin.Context) {
+
+		var regions []Region
+		if err := bc.DB.Select("id", "name").Find(&regions).Error; err != nil {
+			c.JSON(500, bc.Resp("获取区域列表失败", err, nil))
+			return
+		}
+
+		var factors []Factor
+		for _, region := range regions {
+			var histories []History
+			if err := bc.DB.Order("time desc").Where(
+				"severity IS NOT null",
+			).Limit(7).Find(&histories).Error; err != nil {
+				c.JSON(500, bc.Resp("获取历史数据失败", err, nil))
+				return
+			}
+			var items []float64
+			for _, history := range histories {
+				items = append(items, *history.Severity)
+			}
+		}
+	})
+}

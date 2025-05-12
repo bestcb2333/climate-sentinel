@@ -33,7 +33,7 @@ export interface Event {
   startTime: Date
   endTime: Date
   user: User | null
-  severity: number
+  severity: 'safe'|'low'|'medium'|'high'
   coordinate: [number, number]
   description: string
 }
@@ -49,7 +49,7 @@ export interface History {
   axgTemperature: number
   windSpeed: number
   visibility: number
-  rainfall: number | null
+  rainfall: number
   severity: number
   source: string
 }

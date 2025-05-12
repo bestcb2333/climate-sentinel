@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import {request} from '@/axios';
 import type {History} from '@/tables';
-import {Menu} from '@element-plus/icons-vue';
 import {LineChart} from 'echarts/charts';
 import {GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
 import {use} from 'echarts/core';
 import {CanvasRenderer} from 'echarts/renderers';
-import {computed, ref, watch} from 'vue';
+import {computed, reactive, ref, watch} from 'vue';
 import {useI18n} from 'vue-i18n';
 import VChart from 'vue-echarts';
 import useSessionStore from '@/stores/session';
 import dayjs from 'dayjs';
+import type {StatsItem} from '@/types';
+import {useRouteQuery} from '@vueuse/router';
 
 use([
   LineChart,
@@ -23,21 +24,22 @@ use([
 
 const session = useSessionStore()
 
-
-const page = ref(1)
-const pageSize = ref(10)
+const futureOnly = useRouteQuery('future', 'false', {transform: Boolean})
+const regionId = useRouteQuery('region_id', '0', {transform: Number})
+const type = useRouteQuery('type', 'all')
+const page = useRouteQuery('page', '1', {transform: Number})
+const pageSize = useRouteQuery('page_size', '10', {transform: Number})
 const total = ref(0)
 const histories = ref<History[]>([])
-watch([page, pageSize], async ([page, pageSize]) => {
+async function loadTable() {
   const res = await request.get<any, {
     data: History[],
     total: number,
-  }>('/histories', {params: {
-    page, pageSize,
-  }})
+  }>(`/histories?page=${page.value}&page_size=${pageSize.value}&region_id=${regionId.value}&future=${futureOnly.value}&type=${type.value}`)
   total.value = res.total
   histories.value = res.data
-}, {immediate: true})
+}
+watch([page, pageSize, regionId, futureOnly, type], loadTable, {immediate: true})
 
 interface Trend {
   name: string,
@@ -49,28 +51,19 @@ interface Trend {
   }[],
 }
 
-const weatherTypes: Record<string, string[]> = {
-  sunny: ['晴天', '#FFD700'],
-  rainy: ['雨天', '#4A90E2'],
-  cloudy: ['多云', '#B0BEC5'],
-  foggy: ['雾天', '#CFD8DC'],
-  snowy: ['下雪', '#E0F7FA'],
-  windy: ['有风', '#81D4FA'],
-  overcast: ['阴天', '#78909C'],
-}
+const types = [
+  'sunny', 'rainy', 'cloudy', 'foggy', 'snowy', 'windy', 'overcast',
+]
 
-const board = computed(() => [
-  ['晴天', 'sunny'],
-  ['雨天', 'rainy'],
-  ['多云', 'cloudy'],
-  ['雾天', 'foggy'],
-  ['下雪', 'snowy'],
-  ['有风', 'windy'],
-  ['阴天', 'overcast'],
-].map(([label, id]) => ({
-  label,
-  value: histories.value.filter(history => history.type===id).length,
-})))
+const typeColorMap: Record<string, string> = {
+  sunny: '#FFD700',
+  rainy: '#4A90E2',
+  cloudy: '#B0BEC5',
+  foggy: '#CFD8DC',
+  snowy: '#E0F7FA',
+  windy: '#81D4FA',
+  overcast: '#78909C',
+}
 
 const trends = ref<Trend[]>([])
 request.get<any, Trend[]>('/trends').then(res => {
@@ -111,6 +104,8 @@ const lineChartOptions = computed(() => trends.value.map(trend => ({
 
 const {t} = useI18n({messages: {
   zh: {
+    tableTitle: '天气状况列表',
+    add: '添加记录',
     region: '区域',
     type: '天气类型',
     time: '时间',
@@ -120,15 +115,61 @@ const {t} = useI18n({messages: {
     visibility: '能见度',
     severity: '严重性',
     source: '数据源',
+    futureOnly: '仅显示未来预测',
+    allRecords: '显示所有数据',
+    allRegions: '所有区域',
+    all: '所有天气',
+    sunny: '晴天',
+    rainy: '雨天',
+    cloudy: '多云',
+    foggy: '雾天',
+    snowy: '下雪',
+    windy: '有风',
+    overcast: '阴天',
   },
 }})
+
+const StatsItems = ref<StatsItem[]>([])
+request.get<any, StatsItem[]>('/stats/histories').then(res => {
+  StatsItems.value =res
+}).catch(() => {})
+
+const isDialogOpen = ref(false)
+
+const addItemForm = reactive({
+  time: new Date(),
+  regionId: 1,
+  type: 'sunny',
+  maxTemperature: 30,
+  minTemperature: 10,
+  avgTemperature: 20,
+  windSpeed: 3,
+  visibility: 5,
+  rainFall: 0,
+})
+
+async function addItem() {
+  try {
+    await request.post('/histories', addItemForm)
+    loadTable()
+  } catch {}
+}
 </script>
 
 <template>
-  <div class="h-full grid grid-cols-2 grid-rows-[auto_1fr] gap-2">
+  <div class="h-full grid grid-cols-[auto_1fr_1fr] grid-rows-[auto_1fr] gap-2">
+
+    <div class="row-span-2 flex flex-col justify-between">
+      <el-button type="primary" round @click="isDialogOpen=true">
+        {{t('add')}}
+      </el-button>
+      <el-segmented :options="['all', ...types].map(type=>({label:t(type),value:type}))" direction="vertical" v-model="type">
+
+      </el-segmented>
+    </div>
 
     <el-card shadow="hover" body-class="h-full flex justify-around items-center">
-      <div v-for="item in board" :key="item.label" class="flex flex-col items-center">
+      <div v-for="item in StatsItems" :key="item.label" class="flex flex-col items-center">
         <div class="font-bold">
           {{item.label}}
         </div>
@@ -148,12 +189,21 @@ const {t} = useI18n({messages: {
       </el-card>
     </el-card>
 
-    <el-card shadow="never" class="grow basis-0 flex flex-col" body-class="grow overflow-y-auto" footer-class="flex justify-end">
+    <el-card shadow="never" class="grow basis-0 flex flex-col"
+      header-class="flex"
+      body-class="grow overflow-y-auto" footer-class="flex justify-end"
+    >
+
       <template #header>
-        <card-title :title="t('title')" :icon="Menu">
-          <el-button circle :icon="Menu" />
-          <el-button circle :icon="Menu" />
-        </card-title>
+        <div>{{t('tableTitle')}}</div>
+        <el-select class="ms-auto w-32" v-model="regionId">
+          <el-option :label="t('allRegions')" :value="0" />
+          <el-option
+            v-for="region in session.regions" :key="region.id"
+            :label="region.name" :value="region.id"
+          />
+        </el-select>
+        <el-switch class="ms-2" :active-text="t('futureOnly')" :inactive-text="t('allRecords')" v-model="futureOnly" />
       </template>
 
       <el-table :data="histories">
@@ -165,8 +215,8 @@ const {t} = useI18n({messages: {
         <el-table-column :label="t('region')" prop="region.name" />
         <el-table-column :label="t('type')" prop="type">
           <template #default="{row}">
-            <el-tag class="text-black" :color="weatherTypes[row.type][1]">
-              {{weatherTypes[row.type][0]}}
+            <el-tag class="text-black" :color="typeColorMap[row.type]">
+              {{t(row.type)}}
             </el-tag>
           </template>
         </el-table-column>
@@ -191,4 +241,53 @@ const {t} = useI18n({messages: {
     </el-card>
 
   </div>
+  <el-dialog v-model="isDialogOpen">
+    <el-form>
+      <el-form-item :label="t('time')">
+        <el-date-picker v-model="addItemForm.time" />
+      </el-form-item>
+      <el-form-item :label="t('region')">
+        <el-select v-model="addItemForm.regionId">
+          <el-option
+            v-for="region in session.regions"
+            :key="region.id"
+            :label="region.name"
+            :value="region.id"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item :label="t('type')">
+        <el-select v-model="addItemForm.type">
+          <el-option
+            v-for="type, key in types"
+            :key="key"
+            :label="type[0]"
+            :value="key"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item :label="t('temperature')">
+        <el-input-number v-model="addItemForm.maxTemperature" />
+        <el-input-number class="ms-2" v-model="addItemForm.minTemperature" />
+        <el-input-number class="ms-2" v-model="addItemForm.avgTemperature" />
+      </el-form-item>
+      <el-form-item :label="t('windSpeed')">
+        <el-input-number v-model="addItemForm.windSpeed" />
+      </el-form-item>
+      <el-form-item :label="t('visibility')">
+        <el-input-number v-model="addItemForm.visibility" />
+      </el-form-item>
+      <el-form-item :label="t('rainFall')">
+        <el-input-number v-model="addItemForm.rainFall" />
+      </el-form-item>
+      <el-form-item>
+        <el-button class="ms-auto" type="primary" round @click="addItem">
+          {{t('confirm')}}
+        </el-button>
+        <el-button round @click="isDialogOpen=false">
+          {{t('cancel')}}
+        </el-button>
+      </el-form-item>
+    </el-form>
+  </el-dialog>
 </template>

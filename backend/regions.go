@@ -1,23 +1,32 @@
 package main
 
 import (
+	"time"
+
+	p "github.com/bestcb2333/gin-gorm-preloader/preloader"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-type ListRegionDTO struct {
-	ListDTO
+type ListRegionReq struct {
+	History bool `form:"history"`
+	p.PageConfig
 }
 
-func AddRegionRoutes(r *gin.Engine, pbc *PreloaderBaseConfig) {
+func AddRegionRoutes(r *gin.Engine, bc *p.BaseConfig) {
 
-	r.GET("/regions", CreateListHandler[Region](
-		&PreloaderConfig{
-			PreloaderBaseConfig: pbc,
-			Bind:                BindConfig{Query: true},
+	r.GET("/regions", p.CreateListHandler[Region](
+		&p.Config[ListRegionReq]{
+			Base: bc,
+			DefReq: ListRegionReq{PageConfig: p.PageConfig{
+				Page:     1,
+				PageSize: 100,
+			}},
 		},
-		&ListRegionDTO{ListDTO{1, 10}},
-		func(query *gorm.DB, c *gin.Context, u *User, r *ListRegionDTO) *gorm.DB {
+		func(query *gorm.DB, c *gin.Context, u *User, r *ListRegionReq) *gorm.DB {
+			if r.History == true {
+				query = query.Preload("Histories", "time > ?", time.Now()).Select("id", "name")
+			}
 			return query
 		},
 	))

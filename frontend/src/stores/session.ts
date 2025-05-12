@@ -16,7 +16,7 @@ export const useSessionStore = defineStore('session', () => {
     const res = await request.get<any, {
       data: Region[],
       total: number,
-    }>('/regions', {params: {pageSize: 100}})
+    }>('/regions?page=1&page_size=100')
     regions.value = res.data
     total.value = res.total
   }
