@@ -68,4 +68,10 @@ func AddEventRoutes(r *gin.Engine, bc *p.BaseConfig) {
 			return data
 		},
 	))
+
+	r.DELETE("/events", p.CreateDeleteHandler[Event, User](
+		&p.Config[p.DelReq]{
+			Base: bc,
+		},
+	))
 }

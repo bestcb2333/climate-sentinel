@@ -53,7 +53,7 @@ const addItemForm = reactive({
   type: '',
   startTime: new Date(),
   endTime: new Date(),
-  severity: 0,
+  severity: 'safe',
   regionId: 1,
   coordinate: [0, 0],
   description: '',
@@ -95,7 +95,7 @@ async function deleteItems() {
 
 const { t } = useI18n({messages: {
   zh: {
-    reportEvent: '报告事件',
+    reportEvent: '救援请求',
     onlyCurrent: '仅当前事件',
     disasterType: '事件类型',
     startTime: '开始时间',
@@ -119,6 +119,7 @@ const { t } = useI18n({messages: {
     low: '低风险',
     medium: '中风险',
     high: '高风险',
+    mapTitle: '灾害事件地图',
   },
 }})
 </script>
@@ -159,7 +160,7 @@ const { t } = useI18n({messages: {
     >
       <template #header>
         <div class="font-bold">
-          {{('event.mapTitle')}}
+          {{t('mapTitle')}}
         </div>
         <div>
           <el-button circle :icon="Plus" />
@@ -276,10 +277,10 @@ const { t } = useI18n({messages: {
       <el-form-item :label="t('severity')">
         <el-select v-model="addItemForm.severity">
           <el-option
-            v-for="severity, index in severities"
+            v-for="severity in severities"
             :key="severity"
             :label="t(severity)"
-            :value="index"
+            :value="severity"
           />
         </el-select>
       </el-form-item>

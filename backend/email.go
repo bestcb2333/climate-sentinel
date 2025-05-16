@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"net/smtp"
 	"os"
 	"sync"
 	"time"
 
+	p "github.com/bestcb2333/gin-gorm-preloader/preloader"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,18 +20,20 @@ type MailData struct {
 	Location   string
 }
 
-var EmailCodeData struct {
-	Data map[string]EmailCodeDataValue
-	Mu   sync.Mutex
-}
-
 type EmailCodeDataValue struct {
 	Code       string
 	Expiration time.Time
 }
 
 type SendEmailDTO struct {
-	Email string `form:"email"`
+	Email string `uri:"email"`
+}
+
+var EmailCodeData = struct {
+	Data map[string]EmailCodeDataValue
+	Mu   sync.Mutex
+}{
+	Data: make(map[string]EmailCodeDataValue),
 }
 
 // 生成邮件内容体的函数
@@ -68,12 +72,13 @@ func getMailBody(maildata *MailData) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func AddSendEmailRoutes(r *gin.Engine, pbc *PreloaderBaseConfig, config *SMTPConfig) {
+func AddSendEmailRoutes(r *gin.Engine, pbc *p.BaseConfig, config *SMTPConfig) {
 
-	r.GET("/email/:id", Preload(
-		&PreloaderConfig{Bind: BindConfig{Param: true}},
-		&SendEmailDTO{},
+	r.GET("/email/:email", p.Preload(
+		&p.Config[SendEmailDTO]{Bind: &p.BindConfig{Param: true}},
 		func(c *gin.Context, _ *User, r *SendEmailDTO) {
+
+			fmt.Println(r.Email)
 
 			if ok := isValidEmail(r.Email); !ok {
 				c.JSON(400, Resp("邮箱格式有误", nil, nil))

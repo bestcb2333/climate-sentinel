@@ -6,6 +6,7 @@ import {ref} from 'vue';
 import {watch} from 'vue';
 import {request} from '@/axios';
 import {computed} from 'vue';
+import useSessionStore from '@/stores/session';
 
 const {t} = useI18n({messages: {
   zh: {
@@ -27,6 +28,7 @@ const routes = ref<Route[]>([])
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const regionId = ref(0)
 watch(([page, pageSize]), async ([page, pageSize]) => {
   try {
     const res = await request.get<any, {
@@ -45,6 +47,9 @@ const board = computed(() => [
   ['高速路线数量', routes.value.filter(route => route.rate>50).length],
   ['可用路线数量', routes.value.filter(route => route.available).length],
 ].map(([label, value]) => ({label, value})))
+
+const session = useSessionStore()
+const available = ref(false)
 </script>
 
 <template>
@@ -82,11 +87,21 @@ const board = computed(() => [
     </el-card>
 
     <el-card shadow="hover" class="flex flex-col"
+      header-class="flex"
       body-class="grow"
     >
 
       <template #header>
-        救援路线列表
+        <div>
+          救援路线
+        </div>
+        <el-select v-model="regionId" class="ms-auto w-32">
+          <el-option
+            v-for="region in session.regions" :key="region.id"
+            :label="region.name" :value="region.id"
+          />
+        </el-select>
+        <el-switch v-model="available" active-text="仅可用路线" inactive-text="所有区域" />
       </template>
 
       <el-table :data="routes" highlight-current-row @current-change="val=>currentRow=val">

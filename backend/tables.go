@@ -55,7 +55,7 @@ type User struct {
 	Password string   `json:"-" gorm:"type:CHAR(64);not null;comment:密码"`
 	Email    string   `json:"email" gorm:"type:VARCHAR(50);not null;unique;comment:邮箱"`
 	Admin    bool     `json:"admin" gorm:"not null;comment:是管理员"`
-	RegionID *uint    `json:"-" gorm:"index;comment:志愿服务的区域"`
+	RegionID *uint    `json:"regionId" gorm:"index;comment:志愿服务的区域"`
 	Region   *Region  `json:"region"`
 	Notices  []Notice `json:"notices" gorm:"constraint:OnDelete:SET NULL"`
 	Events   []Event  `json:"events" gorm:"constraint:OnDelete:SET NULL"`
@@ -82,7 +82,7 @@ type Region struct {
 // 灾害事件
 type EventDTO struct {
 	Name        string     `json:"name" gorm:"type:VARCHAR(20);not null;unique;comment:事件名称"`
-	RegionID    uint       `json:"-" gorm:"not null;index;comment:所在区域ID"`
+	RegionID    uint       `json:"regionId" gorm:"not null;index;comment:所在区域ID"`
 	StartTime   time.Time  `json:"startTime" gorm:"not null;comment:开始时间"`
 	EndTime     *time.Time `json:"endTime" gorm:"comment:结束时间"`
 	Type        string     `json:"type" gorm:"type:VARCHAR(20);not null;comment:类型"`
@@ -102,7 +102,7 @@ type Event struct {
 
 // 历史数据
 type HistoryDTO struct {
-	RegionID       uint      `json:"-" gorm:"not null;index;comment:相关的区域ID"`
+	RegionID       uint      `json:"regionId" gorm:"not null;index;comment:相关的区域ID"`
 	Type           string    `json:"type" gorm:"type:VARCHAR(20);not null;comment:天气类型"`
 	Time           time.Time `json:"time" gorm:"not null;comment:对应的时间"`
 	MaxTemperature *float64  `json:"maxTemperature" gorm:"comment:最高气温"`
@@ -162,7 +162,7 @@ type RouteDTO struct {
 	Description string              `json:"description" gorm:"type:VARCHAR(200);not null;comment:描述"`
 	Available   bool                `json:"available" gorm:"not null;comment:是否可用"`
 	Rate        *float64            `json:"rate" gorm:"comment:道路限速"`
-	RegionID    uint                `json:"-" gorm:"not null;index;comment:所在的区域ID"`
+	RegionID    uint                `json:"regionId" gorm:"not null;index;comment:所在的区域ID"`
 }
 
 type Route struct {

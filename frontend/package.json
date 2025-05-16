@@ -14,9 +14,11 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@types/crypto-js": "^4.2.2",
     "@vueuse/core": "^13.1.0",
     "@vueuse/router": "^13.1.0",
     "axios": "^1.9.0",
+    "crypto-js": "^4.2.0",
     "dayjs": "^1.11.13",
     "echarts": "^5.6.0",
     "element-plus": "^2.9.8",

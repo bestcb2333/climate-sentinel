@@ -3,6 +3,7 @@ import {request} from '@/axios';
 import type {User} from '@/tables';
 import type {StatsItem} from '@/types';
 import {formatDate} from '@/utils';
+import dayjs from 'dayjs';
 import {ref, watch} from 'vue';
 import {useI18n} from 'vue-i18n';
 
@@ -12,6 +13,7 @@ const pageSize = ref(10)
 const total = ref(0)
 const users = ref<User[]>([])
 const statsItems = ref<StatsItem[]>([])
+const currentRow = ref<User|null>(null)
 
 watch([page, pageSize, regionId], loadTable, {immediate: true})
 loadStats()
@@ -33,6 +35,11 @@ async function loadStats() {
   } catch {}
 }
 
+async function handleCurrentChange(row: User|null) {
+  if (!row) return
+  currentRow.value = row
+}
+
 const {t} = useI18n({messages: {
   zh: {
     createdAt: '创建时间',
@@ -45,6 +52,9 @@ const {t} = useI18n({messages: {
     admins: '管理员数量',
     userList: '用户列表',
     loginSignup: '登录/注册',
+    userinfoTable: '当前用户信息',
+    pleaseSelect: '请选择一个用户',
+    notVolunteer: '不是志愿者',
   },
 }})
 </script>
@@ -59,10 +69,7 @@ const {t} = useI18n({messages: {
       </el-card>
     </el-card>
 
-    <el-card class="row-span-2" shadow="hover">
-    </el-card>
-
-    <el-card shadow="hover" class="flex flex-col col-span-2"
+    <el-card shadow="hover" class="flex flex-col row-span-2"
       body-class="grow min-h-0 overflow-y-auto"
     >
 
@@ -70,7 +77,7 @@ const {t} = useI18n({messages: {
         {{t('userList')}}
       </template>
 
-      <el-table :data="users">
+      <el-table :data="users" highlight-current-row @current-change="handleCurrentChange">
         <el-table-column :label="t('createdAt')" prop="createdAt" :formatter="formatDate" />
         <el-table-column :label="t('name')" prop="name" />
         <el-table-column :label="t('email')" prop="email" width="200" />
@@ -90,6 +97,32 @@ const {t} = useI18n({messages: {
         />
       </template>
 
+    </el-card>
+
+    <el-card class="row-span-2" shadow="hover" header-class="font-bold">
+      <template #header>
+        {{t('userinfoTable')}}
+      </template>
+      <el-descriptions v-if="currentRow">
+        <el-descriptions-item :label="t('createdAt')">
+          {{dayjs(currentRow.createdAt).format('MM月DD日 HH:mm')}}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('name')">
+          {{currentRow.name}}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('email')">
+          {{currentRow.email}}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('admin')">
+          <el-tag :type="currentRow.admin?'success':'danger'">
+            {{t(currentRow.admin?'yes':'no')}}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('region')">
+          {{currentRow.region?currentRow.region.name:t('notVolunteer')}}
+        </el-descriptions-item>
+      </el-descriptions>
+      <el-empty v-else :description="t('pleaseSelect')" />
     </el-card>
 
   </div>

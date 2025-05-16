@@ -4,6 +4,8 @@ import usePersistedStore from '@/stores/persisted';
 import useSessionStore from '@/stores/session';
 import {reactive, ref} from 'vue';
 import {useI18n} from 'vue-i18n';
+import CryptoJS from 'crypto-js';
+import {ElMessage} from 'element-plus';
 
 const session = useSessionStore()
 const persisted = usePersistedStore()
@@ -18,7 +20,10 @@ const loginForm = reactive({
 
 async function login() {
   try {
-    persisted.token = await request.post<any, string>('/login', loginForm)
+    persisted.token = await request.post<any, string>('/login', {
+      username: loginForm.username,
+      password: CryptoJS.SHA256(loginForm.password).toString(CryptoJS.enc.Hex),
+    })
     await session.loadUser()
     isDialogOpen.value = false
   } catch {}
@@ -33,7 +38,12 @@ const signupForm = reactive({
 
 async function signup() {
   try {
-    persisted.token = await request.post<any, string>('/signup', signupForm)
+    persisted.token = await request.post<any, string>('/signup', {
+      username: signupForm.username,
+      password: CryptoJS.SHA256(signupForm.password).toString(CryptoJS.enc.Hex),
+      email: signupForm.email,
+      authcode: signupForm.authcode,
+    })
     await session.loadUser()
     isDialogOpen.value = false
   } catch {}
@@ -47,7 +57,11 @@ const retrieveForm = reactive({
 
 async function retrieve() {
   try {
-    persisted.token = await request.post<any, string>('/retrieve', retrieveForm)
+    persisted.token = await request.post<any, string>('/retrieve', {
+      email: retrieveForm.email,
+      authcode: retrieveForm.authcode,
+      password: CryptoJS.SHA256(retrieveForm.password).toString(CryptoJS.enc.Hex),
+    })
     await session.loadUser()
     isDialogOpen.value = false
   } catch {}
@@ -58,6 +72,15 @@ async function logout() {
   session.user = null
 }
 
+async function sendAuthcode() {
+  try {
+    if (!signupForm.email) {
+      ElMessage({'type': 'error', 'message': t('pleaseInputEmail')})
+      return
+    }
+    await request.get(`/email/${signupForm.email}`)
+  } catch {}
+}
 
 const {t} = useI18n({messages: {
   zh: {
@@ -70,6 +93,9 @@ const {t} = useI18n({messages: {
     staff: '用户管理',
     loginSignup: '登录/注册',
     logout: '退出登录',
+    sendAuthcode: '发送验证码',
+    pleaseInputEmail: '请输入邮箱',
+    username: '用户名',
   },
 }})
 </script>
@@ -87,6 +113,9 @@ const {t} = useI18n({messages: {
         {{t(route.meta.label as string)}}
       </el-menu-item>
     </template>
+    <el-form-item class="!ms-auto" v-if="session.user">
+      用户名: {{session.user.name}}
+    </el-form-item>
     <el-menu-item class="!ms-auto">
       <el-button type="primary" @click="logout" v-if="session.user">
         {{t('logout')}}
@@ -122,7 +151,13 @@ const {t} = useI18n({messages: {
             <el-input v-model="signupForm.email" />
           </el-form-item>
           <el-form-item label="邮箱验证码">
-            <el-input v-model="signupForm.authcode" />
+            <el-input v-model="signupForm.authcode">
+              <template #append>
+                <el-button @click="sendAuthcode">
+                  {{t('sendAuthcode')}}
+                </el-button>
+              </template>
+            </el-input>
           </el-form-item>
           <el-form-item label="用户名">
             <el-input v-model="signupForm.username" />

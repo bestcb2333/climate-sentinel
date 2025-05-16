@@ -5,13 +5,12 @@ import usePersistedStore from '@/stores/persisted'
 import qs from 'qs'
 
 export const request = axios.create({
-  baseURL: 'http://axogc.net:8701',
   paramsSerializer: params => qs.stringify(params, {arrayFormat: 'repeat'})
 })
 
 request.interceptors.request.use((config) => {
   const persisted = usePersistedStore()
-  config.baseURL = 'http://axogc.net:8701'
+  config.baseURL = persisted.setting.apiAddr
   if (persisted.token) {
     config.headers.set('Authorization', `Bearer ${persisted.token}`)
   }
@@ -20,13 +19,20 @@ request.interceptors.request.use((config) => {
 
 request.interceptors.response.use(
   (res) => {
+    if (res.data.message) {
+      ElMessage({'type': 'success', 'message': res.data.message})
+    }
     return res.data.data
   },
   (err) => {
     if (err.response) {
-      const message = 'Error'
-      ElMessage({type: 'error', message: message})
-      return Promise.reject(new Error(message))
+      const data = err.response.data
+      if (err.response.data) {
+        ElMessage({type: 'error', message: data.message})
+        return Promise.reject(err)
+      } else {
+        return Promise.reject(err)
+      }
     } else {
       return Promise.reject(err)
     }

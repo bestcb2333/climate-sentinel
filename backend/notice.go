@@ -18,7 +18,7 @@ func AddNoticeRoutes(r *gin.Engine, pbc *PreloaderBaseConfig) {
 		},
 		&ListNoticeDTO{ListDTO{1, 10}},
 		func(query *gorm.DB, c *gin.Context, u *User, dto *ListNoticeDTO) *gorm.DB {
-			return query
+			return query.Preload("User", Select("id", "name"))
 		},
 	))
 

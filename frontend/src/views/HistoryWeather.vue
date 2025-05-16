@@ -70,7 +70,7 @@ request.get<any, Trend[]>('/trends').then(res => {
   trends.value = res
 }).catch(() => {})
 
-const lineChartOptions = computed(() => trends.value.map(trend => ({
+const lineChartOptions = computed(() => trends.value.map((trend) => ({
   title: {
     text: trend.name
   },
@@ -78,6 +78,7 @@ const lineChartOptions = computed(() => trends.value.map(trend => ({
     trigger: 'axis'
   },
   legend: {
+    top: '10%',
     data: session.regions.map(region => region.name)
   },
   grid: {
@@ -185,7 +186,7 @@ async function addItem() {
       <el-card v-for="option in lineChartOptions" :key="option.title.text" shadow="hover"
         class="aspect-video" body-class="h-full"
       >
-        <v-chart :option="option" />
+        <v-chart :option="option" autoresize />
       </el-card>
     </el-card>
 
@@ -259,10 +260,10 @@ async function addItem() {
       <el-form-item :label="t('type')">
         <el-select v-model="addItemForm.type">
           <el-option
-            v-for="type, key in types"
-            :key="key"
-            :label="type[0]"
-            :value="key"
+            v-for="type in types"
+            :key="type"
+            :label="t(type)"
+            :value="type"
           />
         </el-select>
       </el-form-item>
